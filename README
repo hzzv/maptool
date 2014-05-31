@@ -1,0 +1,83 @@
+Maptool Version 1.0 05/31/2014
+-------------------
+
+Author: Petra Kubincova, Faculty of Mathematics, Physics and Informatics,
+        Comenius University in Bratislava, Slovakia
+        
+This tool is also available at: https://github.com/kpetra/maptool
+
+
+DEPENDENCIES
+-------------------
+
+For preprocessing:
+ * Biopython including the module bgzf.
+   Available at http://biopython.org and also through Linux package management
+   system.
+   (If you have an older version of Biopython, you might run into the following
+    bug when trying to run Maptool preprocessing:
+        "AttributeError: 'BgzfWriter' object has no attribute 'handle'"
+    To fix it, simpy change in the file 'bgzf.py' the line:
+        return make_virtual_offset(self.handle.tell(), len(self._buffer))
+    To the following line:
+        return make_virtual_offset(self._handle.tell(), len(self._buffer))
+   )
+
+For mapping:
+ * Python 2.x, x >= 6
+ * ocaml-bgzf library
+   Available at: https://github.com/mlin/ocaml-bgzf
+   ocaml-bgzf depends on:
+    - zlib (http://www.zlib.net/),
+    - findlib (http://projects.camlcity.org/projects/findlib.html)
+
+
+INPUT AND OUTPUT FILES
+-------------------
+
+Preprocessing:
+ * Input file format is MAF (http://genome.ucsc.edu/FAQ/FAQformat.html#format5)
+ * Output files are:
+    - Binary header file
+    - BGZF compressed file (dx.doi.org/10.1093/bioinformatics/btp352)
+
+Mapping:
+ * Input files are the binary header file and the BGZF compressed file created
+   in the preprocessing phase. The standard input should be in BED format
+   (http://genome.ucsc.edu/FAQ/FAQformat.html#format1).
+ * Standard output is in BED format.
+ * Standart error output is text describing errors encountered during
+   the mapping.
+
+
+HOW TO RUN MAPTOOL?
+-------------------
+
+Preprocessing:
+ Simpy run "python maptool.py" in the directory "preprocessing".
+ (Usage:
+  python maptool.py preprocess <alignment.maf> <header.bin> <compressed.bgzf>
+ )
+
+Mapping:
+ 1. Run "make" in directory "mapping".
+ 2. Run "./maptool" in the same directory.
+    (Usage:
+     ./maptool bed <header.bin> <compressed.bgzf> <informant> [--maxgap N] [--outer] [--alwaysmap]
+       - This will map regions on the standart input in BED format
+         from the reference sequence to the <informant>.
+          - Maxgap is the size of maximal allowed gap in the alignment.
+            Default is 10.
+          - Outer means that the mapping will be enlarged, not shrinked,
+            if needed.
+          - Alwaysmap means that the input region will be mapped even if thick
+            region or exons do not map correctly.
+       - Best to run with redirecting stdin, stdout and stderr:
+          - < regiones_to_be_mapped.bed
+          - > mapped_regions.bed
+          - 2> error_log.txt
+     ./maptool info <header.bin>
+       - This will display identificators of informants and identificators
+         of reference chromosomes.
+
+    
