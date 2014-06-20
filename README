@@ -27,6 +27,8 @@ For mapping:
  * Python 2.x, x >= 6
  * ocaml-bgzf library
    Available at: https://github.com/mlin/ocaml-bgzf
+   The directory containing ocaml-bgzf needs to be in the same directory
+   as 'maptool'.
    ocaml-bgzf depends on:
     - zlib (http://www.zlib.net/),
     - findlib (http://projects.camlcity.org/projects/findlib.html)
