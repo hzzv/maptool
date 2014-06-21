@@ -51,13 +51,13 @@ bool print_error(int error, int usage=USAGE_ALL, void* message = NULL)
         //TODO: Implement preprocessing.
 //         if (usage == USAGE_PREP || usage == USAGE_ALL)
 //         {
-//             std::cerr << "./maptool preprocess <from.maf> <header.bin> "
-//                 "<to.bgzf>" << endl;
+//             std::cerr << "./maptool preprocess <alignment.maf> <header.bin> "
+//                 "<compressed.bgzf>" << endl;
 //         }
         if (usage == USAGE_BED || usage == USAGE_ALL)
         {
-            std::cerr << "./maptool bed <header.bin> <from.bgzf> <informant> "
-                "[--maxgap N] [--outer] [--allerrors] [--alwaysmap]" << endl;
+            std::cerr << "./maptool bed <header.bin> <compressed.bgzf> "
+                "<informant> [--maxgap N] [--outer] [--alwaysmap]" << endl;
         }
         if (usage == USAGE_INFO || usage == USAGE_ALL)
         {
