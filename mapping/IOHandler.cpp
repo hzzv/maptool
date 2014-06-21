@@ -208,6 +208,7 @@ vector<bool>* IOHandler::read_bin_sequence(seqpos_t length,
     {
         if (bgzf_read(bgzf_, data, real_length) != real_length)
         {
+            delete[] data;
             throw std::runtime_error("Unreadable BGZF file" +
                                      string(bin_fname_));
         }
@@ -217,6 +218,7 @@ vector<bool>* IOHandler::read_bin_sequence(seqpos_t length,
         ibin_.read(data, real_length);
         if (ibin_.gcount() != real_length)
         {
+            delete[] data;
             throw std::runtime_error("Unreadable binary file" +
                                      string(bin_fname_));
         }
@@ -244,6 +246,7 @@ vector<bool>* IOHandler::read_bin_sequence(seqpos_t length,
             }
         }
     }
+    delete[] data;
     return ret;
 }
 
@@ -334,6 +337,7 @@ vector<Reference*>* IOHandler::read_references(vector<IndexItem*> &index_items,
 
 void IOHandler::add_to_cache(uint64_t pointer, Reference* reference)
 {
+    if ((cache_.count(pointer) > 0) && (cache_[pointer].second == 0)) return;
     for (auto it = cache_.begin(); it != cache_.end(); ++it)
     {
         ++it->second.second;

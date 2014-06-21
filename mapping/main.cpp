@@ -51,13 +51,13 @@ bool print_error(int error, int usage=USAGE_ALL, void* message = NULL)
         //TODO: Implement preprocessing.
 //         if (usage == USAGE_PREP || usage == USAGE_ALL)
 //         {
-//             std::cerr << "./maptool preprocess <alignment.maf> <header.bin> "
+//             std::cerr << "./maptool preprocess <from.maf> <header.bin> "
 //                 "<to.bgzf>" << endl;
 //         }
         if (usage == USAGE_BED || usage == USAGE_ALL)
         {
-            std::cerr << "./maptool bed <header.bin> <compressed.bgzf> "
-                "<informant> [--maxgap N] [--outer] [--alwaysmap]" << endl;
+            std::cerr << "./maptool bed <header.bin> <from.bgzf> <informant> "
+                "[--maxgap N] [--outer] [--allerrors] [--alwaysmap]" << endl;
         }
         if (usage == USAGE_INFO || usage == USAGE_ALL)
         {
@@ -75,7 +75,7 @@ bool parse_options(char* opt[], int optnum, char command[], char file1[],
     char file2[], char file3[], char informant[], int &maxgap, bool &inner,
     bool &alwaysmap, bool &compressed)
 {
-    strcpy(file3, "not supported");
+    strcpy(file3, "");
     if (optnum <= 1) return false;
     if (strcmp(opt[1], "bed") == 0)
     {
@@ -129,6 +129,17 @@ bool parse_options(char* opt[], int optnum, char command[], char file1[],
     return true;
 }
 
+void delete_index(map <bioid_t, vector <IndexItem*> > &index)
+{
+    for (auto mit = index.begin(); mit != index.end(); ++mit)
+    {
+        for (auto vit = mit->second.begin(); vit != mit->second.end(); ++vit)
+        {
+            delete (*vit);
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     char command[10];
     char file1[1000] = "", file2[1000] = "", file3[1000] = "";
@@ -170,36 +181,46 @@ int main(int argc, char* argv[]) {
     }
     else if (strcmp(command, "bed") == 0)
     {
-        string informant(informantc);
-        ioh.open_to_map();
-        Mapping to_map(&ioh, informant, maxgap, maxgap, inner, alwaysmap,
-                       &genome_map, &chr_maps, &index);
-        string bedline;
-        while (true)
+        try
         {
-            // For each BED-line on input:
-            getline(cin, bedline);
-            if (cin.eof()) break;
-            if (bedline.compare("") == 0) continue;
-            BedQuery* bedquery = new BedQuery(bedline);
-            // Transform it to closed interval
-            bedquery->to_closed();
-            // Try to map the interval
-            to_map.set_query(bedquery);
-            BedQuery* bq;
-            try
+            string informant(informantc);
+            ioh.open_to_map();
+            Mapping to_map(&ioh, informant, maxgap, maxgap, inner, alwaysmap,
+                        &genome_map, &chr_maps, &index);
+            string bedline;
+            while (true)
             {
-                bq = to_map.get_answer();
-                bq->to_half_closed();
-                cerr << bq->get_name() << "\tmapped" << endl;
+                // For each BED-line on input:
+                getline(cin, bedline);
+                if (cin.eof()) break;
+                if (bedline.compare("") == 0) continue;
+                BedQuery* bedquery = new BedQuery(bedline);
+                // Transform it to closed interval
+                bedquery->to_closed();
+                // Try to map the interval
+                to_map.set_query(bedquery);
+                BedQuery* bq;
+                try
+                {
+                    bq = to_map.get_answer();
+                    bq->to_half_closed();
+                    cerr << bq->get_name() << "\tmapped" << endl;
+                    // If the mapping was successful, print it
+                    cout << bq->get_bedline() << endl;
+                }
+                catch (MappingError e)
+                {
+                    to_map.print_errors();
+                }
+                to_map.delete_old();
+                delete bedquery;
             }
-            catch (MappingError e)
-            {
-                to_map.print_errors();
-                bq = new BedQuery();
-            }
-            // If the mapping was successful, print it
-            if (bq->get_start() != -1) cout << bq->get_bedline() << endl;
         }
+        catch (std::runtime_error e)
+        {
+            delete_index(index);
+            throw e;
+        }
+        delete_index(index);
     }
 }

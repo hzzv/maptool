@@ -37,11 +37,36 @@ Mapping::Mapping(IOHandler* ioh, string &informant, int inf_maxgap,
                                                       (it->second).second);
     }
     query_ = NULL;
+    answer_ = NULL;
+    thick_answer_ = NULL;
+    references_ = NULL;
 }
 
 Mapping::~Mapping()
 {
     delete this->id_to_len_;
+    delete_old();
+}
+
+void Mapping::delete_old()
+{
+    if (references_ != NULL)
+    {
+        delete references_;
+        references_ = NULL;
+    }
+    if ((thick_answer_ != NULL) && (thick_answer_ != answer_))
+    {
+        delete thick_answer_;
+        thick_answer_ = NULL;
+    }
+    if (answer_ != NULL)
+    {
+        delete answer_;
+        answer_ = NULL;
+    }
+    for (auto it = exons_.begin(); it != exons_.end(); ++it) delete (*it);
+    exons_.clear();
 }
 
 string Mapping::get_error_message(string error_name)
@@ -71,9 +96,10 @@ void Mapping::print_errors()
 }
 
 // Set one error and throw exception
-void Mapping::error(string error_name)
+void Mapping::error(string error_name /*=""*/)
 {
-    errors_.push_back(error_name);
+    delete_old();
+    if (error_name.compare("") != 0) errors_.push_back(error_name);
     throw MappingError();
 }
 
@@ -295,21 +321,17 @@ BedQuery* Mapping::get_mapping(seqpos_t start, seqpos_t end,
     vector<Informant*>::iterator inf_it2;
     int way = 1;
     if (!inner_) way = -1;
-    BedQuery *answer1 = map_position(references, informants, start, way,
+    answer_ = map_position(references, informants, start, way,
                                      ref_it1, inf_it1);
     BedQuery *answer2 = map_position(references, informants, end, (-1) * way,
                                      ref_it2, inf_it2);
     
     // Check if the positions make up an interval
-    if (!(answer1->merge_query(answer2, query_->get_strand())))
-        error("no_mapping");
-    if (!check_informants(inf_it1, inf_it2))
-    {
-        throw MappingError();
-    }
-    
+    bool merged = answer_->merge_query(answer2, query_->get_strand());
     delete answer2;
-    return answer1;
+    if (!merged) error("no_mapping");
+    if (!check_informants(inf_it1, inf_it2)) error();
+    return answer_;
 }
 
 // Sets given iterators such that corresponding Reference-s contain start, end
@@ -337,67 +359,67 @@ void Mapping::set_ref_iterators(seqpos_t start, seqpos_t end,
 // Get mapping of a given BED line - interval, thick interval and exons
 BedQuery* Mapping::get_answer()
 {
+    delete_old();
     if ((query_ == NULL) || (query_->get_start() > query_->get_end()))
         error("invalid_query");
     // Get references
     ref_chr_id_ = (*chr_maps_)[0][query_->get_chr()].first;
-    vector <Reference*> *references = get_references(query_->get_start(),
+    references_ = get_references(query_->get_start(),
                                                      query_->get_end());
-    if (references->size() == 0) error("no_mapping");
-    vector<Reference*>::iterator ref_it1 = references->begin();
-    vector<Reference*>::iterator ref_it2 = --(references->end());
+    if (references_->size() == 0) error("no_mapping");
+    vector<Reference*>::iterator ref_it1 = references_->begin();
+    vector<Reference*>::iterator ref_it2 = --(references_->end());
     vector<Informant*> informants;
-    fill_informant_vector(*references, informants);
+    fill_informant_vector(*references_, informants);
     // Interval
     int imaxgap = inf_maxgap_;
     if (query_->get_exon_count() > 0) inf_maxgap_ = -1;
     BedQuery* answer = get_mapping(query_->get_start(), query_->get_end(),
-                                   *references, informants, ref_it1, ref_it2);
+                                   *references_, informants, ref_it1, ref_it2);
     
     // Thick interval
     if (query_->get_thick_start() != -1)
     {
-        BedQuery* thick_answer;
         if ((query_->get_thick_start() == query_->get_start()) &&
             (query_->get_thick_end() == query_->get_end()))
         {
-            thick_answer = answer;
+            thick_answer_ = answer;
         }
         else
         {
             set_ref_iterators(query_->get_thick_start(),
-                              query_->get_thick_end(), *references,
+                              query_->get_thick_end(), *references_,
                               ref_it1, ref_it2);
-            thick_answer = get_mapping(query_->get_thick_start(),
+            thick_answer_ = get_mapping(query_->get_thick_start(),
                                        query_->get_thick_end(),
-                                       *references, informants, ref_it1,
+                                       *references_, informants, ref_it1,
                                        ref_it2);
         }
-        answer->merge_thick(thick_answer);
+        answer->merge_thick(thick_answer_);
     }
     
     // Exons
     if (query_->get_exon_count() > 0)
     {
-        vector<BedQuery*> exons;
         inf_maxgap_ = imaxgap;
         for (unsigned i = 0; i < query_->get_exon_count(); ++i)
         {
-            ref_it1 = references->begin();
-            ref_it2 = --(references->end());
+            ref_it1 = references_->begin();
+            ref_it2 = --(references_->end());
             set_ref_iterators(query_->get_start() +
                               (*(query_->get_exon_starts()))[i],
                               query_->get_start() +
                               (*(query_->get_exon_ends()))[i],
-                              *references, ref_it1, ref_it2);
-            exons.push_back(get_mapping(query_->get_start() +
+                              *references_, ref_it1, ref_it2);
+            exons_.push_back(get_mapping(query_->get_start() +
                                         (*(query_->get_exon_starts()))[i],
                                         query_->get_start() +
                                         (*(query_->get_exon_ends()))[i],
-                                        *references, informants, ref_it1,
+                                        *references_, informants, ref_it1,
                                         ref_it2));
         }
-        if (!(answer->merge_exons(exons)) && !alwaysmap_)
+        bool merged_exons = answer->merge_exons(exons_);
+        if (!merged_exons && !alwaysmap_)
             error("no_exon_mapping");
     }
     return answer;

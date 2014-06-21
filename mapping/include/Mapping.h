@@ -38,6 +38,7 @@ class Mapping
         BedQuery* get_answer();
         
         void print_errors();
+        void delete_old();
     
     private:
         IOHandler* ioh_;
@@ -46,7 +47,9 @@ class Mapping
         bioid_t ref_chr_id_;
         int inf_maxgap_, ref_maxgap_;
         bool inner_, alwaysmap_;
-        BedQuery* query_;
+        BedQuery *query_, *answer_, *thick_answer_;
+        std::vector<Reference*>* references_;
+        std::vector<BedQuery*> exons_;
         std::map<std::string, bioid_t> *genome_map_;
         std::vector< std::map<std::string,
                     std::pair <bioid_t, seqpos_t> > > *chr_maps_;
@@ -56,7 +59,8 @@ class Mapping
         static const int known_error_count_ = 10;
         std::string known_error_names_[known_error_count_] = {"no_mapping",
             "pos_to_gap", "inf_preceed", "inf_strand", "inf_contig", "inf_gap",
-            "invalid_query", "no_exon_mapping", "no_thick_mapping", "ref_gap"};
+            "invalid_query", "no_exon_mapping", "no_thick_mapping", "ref_gap"
+        };
         std::string known_error_messages_[known_error_count_] = {
             "There is no mapping of the interval (maybe try --outer?)",
             "Position maps to gap",
@@ -88,7 +92,7 @@ class Mapping
                               std::vector<Reference*>::iterator &ref_it1,
                               std::vector<Reference*>::iterator &ref_it2);
         std::string get_error_message(std::string error_name);
-        void error(std::string error_name);
+        void error(std::string error_name="");
         void set_ref_iterators(seqpos_t start, seqpos_t end,
                                std::vector<Reference*> &references,
                                std::vector<Reference*>::iterator &ref_it1,

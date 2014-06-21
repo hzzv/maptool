@@ -70,19 +70,29 @@ void Sequence::print_seq()
 // Find index of 'number'-th '1' in this sequence
 int Sequence::select(int number)
 {
-    int seq_pos = (*rankselect_)[number/SELECT_BITS];
-    number = number % SELECT_BITS;
+    int rs = number/SELECT_BITS;
+    if (rs >= (int)rankselect_->size())
+    {
+        rs = (int)rankselect_->size() - 1;
+        number = SELECT_BITS;
+    }
+    else number = number % SELECT_BITS;
+//     rs = number/SELECT_BITS;
+//     number = number % SELECT_BITS;
+    int seq_pos = (*rankselect_)[rs];
     while ((seq_pos+1 < (int)sequence_->size()) &&
            ((number > 0) || (!(*sequence_)[seq_pos+1])))
     {
         number -= (*sequence_)[++seq_pos];
     }
+//     std::cerr << " :" << seq_pos+1 << "; ";
     return seq_pos+1;
 }
 
 
 int Sequence::rank(seqpos_t seq_pos)
 {
+    if (seq_pos >= this->length()) seq_pos = this->length() - 1;
     // Uncomment the commented lines to put rank in use (do not forget about
     // commented lines in IOHandler.cpp)
 //     int ret = this->get_chr_pos() + (*rankselect_)[seq_pos/RANK_BITS];
